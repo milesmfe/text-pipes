@@ -11,7 +11,7 @@ Generation and rendering are split into two independent modules so you can run t
 ## Install
 
 ```bash
-npm install text-pipes
+npm install @milesmfe/text-pipes
 ```
 
 ## Quick start
@@ -24,7 +24,7 @@ The generator accepts raw font bytes (`Buffer` in Node, `ArrayBuffer` in the bro
 
 ```js
 import { readFileSync } from "fs";
-import { buildSVGData } from "text-pipes/generator";
+import { buildSVGData } from "@milesmfe/text-pipes/generator";
 
 const font = readFileSync("./fonts/Inter.ttf");
 const data = buildSVGData(font, "hello world");
@@ -33,7 +33,7 @@ const data = buildSVGData(font, "hello world");
 **Browser**
 
 ```js
-import { buildSVGData } from "text-pipes/generator";
+import { buildSVGData } from "@milesmfe/text-pipes/generator";
 
 const res  = await fetch("/fonts/Inter.ttf");
 const font = await res.arrayBuffer();
@@ -46,7 +46,7 @@ const data = buildSVGData(font, "hello world");
 <div id="tp" style="width: 100%; height: 100vh"></div>
 
 <script type="module">
-  import { TextPipes } from "text-pipes/renderer";
+  import { TextPipes } from "@milesmfe/text-pipes/renderer";
 
   const tp = new TextPipes(document.getElementById("tp"), data, {
     color: "#fff",
@@ -79,7 +79,7 @@ window.addEventListener("scroll", () => {
 If you don't need the server/client split, the root entry point re-exports everything:
 
 ```js
-import { buildSVGData, TextPipes } from "text-pipes";
+import { buildSVGData, TextPipes } from "@milesmfe/text-pipes";
 
 const font = await fetch("/fonts/Inter.ttf").then(r => r.arrayBuffer());
 const data = buildSVGData(font, "hello");
@@ -93,7 +93,7 @@ A self-contained IIFE build is included for use via CDN or a local `<script>` ta
 ```html
 <div id="tp" style="width: 100%; height: 100vh"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/text-pipes/dist/text-pipes.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@milesmfe/text-pipes/dist/text-pipes.iife.js"></script>
 <script>
   const { buildSVGData, TextPipes } = window.TextPipes;
 
@@ -232,7 +232,7 @@ Pass a seeded RNG to get identical output across runs. This avoids hydration mis
 
 ```js
 import seedrandom from "seedrandom";
-import { buildSVGData } from "text-pipes/generator";
+import { buildSVGData } from "@milesmfe/text-pipes/generator";
 
 const data = buildSVGData(font, "hello", 150, {
   rng: seedrandom("my-seed"),
@@ -246,7 +246,7 @@ Since `SVGData` is plain JSON, you can generate once at build time and cache ind
 ```js
 // build step or API route
 import { readFileSync, writeFileSync } from "fs";
-import { buildSVGData } from "text-pipes/generator";
+import { buildSVGData } from "@milesmfe/text-pipes/generator";
 
 const font = readFileSync("./fonts/Inter.ttf");
 const data = buildSVGData(font, "hello");
@@ -256,7 +256,7 @@ writeFileSync("./data/hello.json", JSON.stringify(data));
 ```html
 <!-- client — only the renderer is loaded, no font parsing deps -->
 <script type="module">
-  import { TextPipes } from "text-pipes/renderer";
+  import { TextPipes } from "@milesmfe/text-pipes/renderer";
 
   const data = await fetch("/data/hello.json").then(r => r.json());
   const tp = new TextPipes(document.getElementById("tp"), data);
@@ -277,7 +277,7 @@ const tp = new TextPipes(container, data, {
 
 ```jsx
 import { useEffect, useRef } from "react";
-import { TextPipes } from "text-pipes/renderer";
+import { TextPipes } from "@milesmfe/text-pipes/renderer";
 
 function Pipes({ data }) {
   const ref = useRef(null);
@@ -297,11 +297,11 @@ function Pipes({ data }) {
 Full type declarations ship with the package. All interfaces are importable from any entry point:
 
 ```ts
-import type { SVGData, GeneratorOptions } from "text-pipes/generator";
-import type { RendererOptions }           from "text-pipes/renderer";
+import type { SVGData, GeneratorOptions } from "@milesmfe/text-pipes/generator";
+import type { RendererOptions }           from "@milesmfe/text-pipes/renderer";
 
 // or from the root
-import type { SVGData, PathDatum, GeneratorOptions, RendererOptions } from "text-pipes";
+import type { SVGData, PathDatum, GeneratorOptions, RendererOptions } from "@milesmfe/text-pipes";
 ```
 
 ## Module formats

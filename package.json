@@ -1,5 +1,8 @@
 {
-  "name": "text-pipes",
+  "name": "@milesmfe/text-pipes",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "3.0.0",
   "description": "Animated SVG text pipe effect — generate path data from any font, render responsive animations with drain/restore/scrub controls",
   "type": "module",
