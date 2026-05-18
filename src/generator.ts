@@ -91,10 +91,30 @@ export function buildSVGData(
     buffer = fontBuffer as unknown as ArrayBuffer;
   }
 
-  const font = opentype.parse(buffer);
+  let font: opentype.Font;
+  try {
+    font = opentype.parse(buffer);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Failed to parse font: ${msg}. ` +
+      "Ensure the file is a valid .ttf or .otf font. " +
+      "Some OpenType features (e.g. advanced GSUB substitutions) are not supported by the underlying parser.",
+    );
+  }
 
-  const textPath = font.getPath(text, 0, fontSize, fontSize);
-  const totalWidth = font.getAdvanceWidth(text, fontSize);
+  let textPath: opentype.Path;
+  let totalWidth: number;
+  try {
+    textPath = font.getPath(text, 0, fontSize, fontSize);
+    totalWidth = font.getAdvanceWidth(text, fontSize);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Failed to render "${text}" with the provided font: ${msg}. ` +
+      "The font may use unsupported OpenType features or may not contain glyphs for the requested characters.",
+    );
+  }
   const subPaths = commandsToSubpaths(textPath.commands);
 
   const pathData = subPaths.map((dStr, index) => {
