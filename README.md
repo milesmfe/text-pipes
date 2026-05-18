@@ -95,7 +95,7 @@ A self-contained IIFE build is included for use via CDN or a local `<script>` ta
 
 <script src="https://cdn.jsdelivr.net/npm/@milesmfe/text-pipes/dist/text-pipes.iife.js"></script>
 <script>
-  const { buildSVGData, TextPipes } = window.TextPipes;
+  const { buildSVGData, TextPipes } = window.textPipes;
 
   fetch("/fonts/Inter.ttf")
     .then(r => r.arrayBuffer())
