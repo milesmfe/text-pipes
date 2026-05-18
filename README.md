@@ -1,63 +1,69 @@
+
 # Text Pipes
 
-Animated SVG text pipe effect. Turn a font file and a string into SVG path data, render it, and exposes drain / restore / scrub controls.
+Animated SVG text pipe effect. Turn a font file and a string into SVG path data, render it, and expose drain / restore / scrub controls.
+
+**Version 2.0:** `text-pipes` is now entirely environment-agnostic. You can generate the SVG data ahead of time on your server (Node.js) or entirely on the client (Browser).
 
 ## Install
 
 ```bash
 npm install text-pipes
+
 ```
 
 ## How it works
 
-`text-pipes` is split into two entry points:
+`text-pipes` is split into two independent modules:
 
-| Entry                 | Runs in | Purpose                                                                                                                                    |
-| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `text-pipes/server` | Node    | Parse a `.ttf` / `.otf` font, trace each character, and extend every glyph with a randomised "pipe" path. Returns a plain JSON object. |
-| `text-pipes/client` | Browser | Take that JSON, build a responsive SVG, and animate strokes with CSS `stroke-dashoffset` transitions.                                    |
+| **Entry**          | **Purpose**                                                                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text-pipes/generator` | Parses a `.ttf`/`.otf`font from an ArrayBuffer/Buffer, traces each character, and extends every glyph with a randomised "pipe" path. Returns a plain JSON object. |
+| `text-pipes/renderer`  | Takes the generated JSON, builds a responsive SVG, and controls the animation natively.                                                                               |
 
-The server does the expensive work once. The client is dependency-free and renders at 60 fps.
+## Quick Start
 
-## Quick start
+### 1. Generate path data
 
-### 1. Generate path data on the server
+The generator requires raw font data (a `Buffer` in Node, or an `ArrayBuffer` in the Browser).
 
-```js
-import { buildSVGData } from "text-pipes/server";
+**Option A: Generate on the Server (Node.js)**
 
-const data = buildSVGData("/absolute/path/to/Font.ttf", "hello");
+```javascript
+import { readFileSync } from "fs";
+import { buildSVGData } from "text-pipes/generator";
+
+const fontBuffer = readFileSync("./fonts/YourFont.ttf");
+const data = buildSVGData(fontBuffer, "hello");
+
 ```
 
-`buildSVGData` returns a JSON-serialisable object; cache it, persist it, or serve it from an API endpoint.
+**Option B: Generate in the Browser**
 
-### 2. Serve the client module to the browser
+```javascript
+import { buildSVGData } from "text-pipes/generator";
 
-The client entry point is a plain `.mjs` file. Expose it however suits your stack:
+const res = await fetch("/fonts/YourFont.ttf");
+const fontBuffer = await res.arrayBuffer();
+const data = buildSVGData(fontBuffer, "hello");
 
-```js
-// Express example
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
-app.get("/text-pipes-client.mjs", (_req, res) => {
-  res.type("application/javascript");
-  res.sendFile(require.resolve("text-pipes/client"));
-});
 ```
 
-### 3. Render and control the animation
+### 2. Render and control the animation
 
-```html
+```javascript
 <div id="pipes" style="width:100%;height:100vh"></div>
 
 <script type="module">
-  import { TextPipes } from "/text-pipes-client.mjs";
-
-  const res  = await fetch("/api/textpipes");
-  const data = await res.json();
-
-  const tp = new TextPipes(document.getElementById("pipes"), data);
+  import { TextPipes } from "text-pipes/renderer";
+  
+  // Assuming 'data' was fetched from your API or generated in-browser:
+  const tp = new TextPipes(document.getElementById("pipes"), data, {
+    color: "#ffffff",      // Outline and fill color
+    fadeSpeedFactor: 8,    // How fast the text fill fades out
+    drainSpeed: 1.5,       // Multiplier for drain animation speed
+    restoreSpeed: 1.2      // Multiplier for restore animation speed
+  });
 
   // Animate the strokes away from the text
   tp.drain();
@@ -71,160 +77,55 @@ app.get("/text-pipes-client.mjs", (_req, res) => {
   // Clean up when done
   tp.destroy();
 </script>
+
 ```
 
 ## API
 
-### Server: `text-pipes/server`
+### `text-pipes/generator`
 
-#### `buildSVGData(fontPath, text, fontSize?)`
+#### `buildSVGData(fontBuffer, text, fontSize?)`
 
-| Param        | Type       | Default | Description                                        |
-| ------------ | ---------- | ------- | -------------------------------------------------- |
-| `fontPath` | `string` | —      | Absolute path to a `.ttf` or `.otf` font file. |
-| `text`     | `string` | —      | The text to render.                                |
-| `fontSize` | `number` | `150` | Font size in px.                                   |
+| **Param** | **Type**           | **Default** | **Description**                        |
+| --------------- | ------------------------ | ----------------- | -------------------------------------------- |
+| `fontBuffer`  | `ArrayBuffer \| Buffer` | —                | Raw file data for a `.ttf`or `.otf`font. |
+| `text`        | `string`               | —                | The text to render.                          |
+| `fontSize`    | `number`               | `150`           | Font size in px.                             |
 
-Returns an object:
+Returns a JSON object containing the combined `fillD` text shape, advancing width dimensions, and a `pathData` array mapping each character to its combined character+pipe SVG path lengths.
 
-| Key             | Type       | Description                                            |
-| --------------- | ---------- | ------------------------------------------------------ |
-| `fillD`       | `string` | Combined SVG `d` attribute for the solid text shape. |
-| `pathData`    | `Array`  | One entry per character (see below).                   |
-| `totalWidth`  | `number` | Advance width of the full string at `fontSize`.      |
-| `fontSize`    | `number` | The font size that was used.                           |
-| `textOffsetX` | `number` | Half of `totalWidth`: useful for centring.           |
-| `textOffsetY` | `number` | Vertical centre offset (`fontSize * 2/3`).           |
+### `text-pipes/renderer`
 
-Each element of `pathData`:
+#### `new TextPipes(container, data, options?)`
 
-| Key              | Type       | Description                                                       |
-| ---------------- | ---------- | ----------------------------------------------------------------- |
-| `fullD`        | `string` | SVG `d` combining the character outline and its pipe extension. |
-| `letterLength` | `number` | Path length of the character portion only.                        |
-| `totalLength`  | `number` | Path length including the pipe.                                   |
-| `duration`     | `number` | Suggested animation duration in seconds (`totalLength / 1600`). |
-| `delay`        | `number` | Stagger delay in seconds (`index * 0.03`).                      |
+Creates a full-size SVG inside `container`, centred and responsive.
 
-### Client: `text-pipes/client`
+| **Param** | **Type**  | **Description**                      |
+| --------------- | --------------- | ------------------------------------------ |
+| `container`   | `HTMLElement` | The element that will hold the SVG.        |
+| `data`        | `object`      | The object returned by `buildSVGData()`. |
+| `options`     | `object`      | Optional settings (see below).             |
 
-#### `new TextPipes(container, data)`
+**Options:**
 
-| Param         | Type            | Description                                |
-| ------------- | --------------- | ------------------------------------------ |
-| `container` | `HTMLElement` | The element that will hold the SVG.        |
-| `data`      | `object`      | The object returned by `buildSVGData()`. |
+* `color` (string): CSS color for strokes and fill. Default: `"#111"`.
+* `fadeSpeedFactor` (number): Multiplier dictating how fast the fill fades when scrubbing. Default: `10`.
+* `drainSpeed` (number): Animation speed multiplier for `drain()`. Default: `1`.
+* `restoreSpeed` (number): Animation speed multiplier for `restore()`. Default: `1`.
 
-Creates a full-size SVG inside `container`, centred and responsive (re-centres on window resize).
+#### Methods
 
-#### `tp.drain()`
-
-Animate every stroke away from its character. Each stroke's transition is staggered by the `delay` value in `pathData`.
-
-#### `tp.restore()`
-
-Animate the strokes back to their idle position.
-
-#### `tp.setProgress(t)`
-
-Scrub the animation to an exact position.
-
-| Param | Type       | Description                                                                |
-| ----- | ---------- | -------------------------------------------------------------------------- |
-| `t` | `number` | `0` = idle (text visible), `1` = fully drained. Clamped to `[0, 1]`. |
-
-Transitions are disabled during scrubbing so the update is instant: useful for scroll-linked or slider-driven effects.
-
-#### `tp.destroy()`
-
-Cancel pending animation frames, remove the resize listener, and clear the container.
-
-## Full example
-
-A minimal Express app that serves the effect:
-
-```
-example/
-├── fonts/
-│   └── YourFont.ttf
-├── public/
-│   └── index.html
-├── server.js
-└── package.json
-```
-
-**server.js**
-
-```js
-import express from "express";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
-import { buildSVGData } from "text-pipes/server";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const require   = createRequire(import.meta.url);
-const app       = express();
-
-let cached;
-
-app.get("/api/textpipes", (_req, res) => {
-  if (!cached) {
-    cached = buildSVGData(join(__dirname, "fonts/YourFont.ttf"), "hello");
-  }
-  res.json(cached);
-});
-
-app.get("/text-pipes-client.mjs", (_req, res) => {
-  res.type("application/javascript");
-  res.sendFile(require.resolve("text-pipes/client"));
-});
-
-app.use(express.static(join(__dirname, "public")));
-
-app.listen(3000, () => console.log("http://localhost:3000"));
-```
-
-**public/index.html**
-
-```html
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>text-pipes</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; background: #fff; overflow: hidden; }
-    #pipes { width: 100%; height: 100%; }
-  </style>
-</head>
-<body>
-  <div id="pipes"></div>
-  <script type="module">
-    import { TextPipes } from "/text-pipes-client.mjs";
-
-    const res  = await fetch("/api/textpipes");
-    const data = await res.json();
-    const tp   = new TextPipes(document.getElementById("pipes"), data);
-
-    // drain after 1 second, restore after 3
-    setTimeout(() => tp.drain(), 1000);
-    setTimeout(() => tp.restore(), 3000);
-  </script>
-</body>
-</html>
-```
+* `tp.drain()`: Animate every stroke away from its character.
+* `tp.restore()`: Animate the strokes back to their idle position.
+* `tp.setProgress(t)`: Scrub the animation to an exact position (`0` = idle, `1` = fully drained). Transitions are disabled during scrubbing so updates are instant (ideal for scroll triggers).
+* `tp.destroy()`: Cancel pending animation frames, remove the resize listener, and clear the container.
 
 ## Dependencies
 
-| Package                                                             | Purpose                                               |
-| ------------------------------------------------------------------- | ----------------------------------------------------- |
-| [opentype.js](https://github.com/opentypejs/opentype.js)               | Font parsing and glyph path extraction (server only). |
-| [svg-path-properties](https://github.com/rveciana/svg-path-properties) | Path length calculation (server only).                |
+* [opentype.js](https://github.com/opentypejs/opentype.js "null") (Generator only)
+* [svg-path-properties](https://github.com/rveciana/svg-path-properties "null") (Generator only)
 
-The client entry has zero dependencies.
+The Renderer has zero dependencies and runs efficiently at 60fps natively in the browser.
 
 ## License
 

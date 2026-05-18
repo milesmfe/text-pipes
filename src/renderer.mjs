@@ -2,43 +2,47 @@ export class TextPipes {
   #container;
   #group;
   #data;
+  #options;
   #state = "idle";
   #raf = 0;
 
-  /**
-   * @param {HTMLElement} container  element that will hold the SVG
-   * @param {object}      data       JSON returned by buildSVGData()
-   */
   #onResize = () => this.#applyTransform();
 
-  constructor(container, data) {
+  constructor(container, data, options = {}) {
     this.#container = container;
     this.#data = data;
+    this.#options = {
+      color: "#111",
+      fadeSpeedFactor: 10,
+      drainSpeed: 1,
+      restoreSpeed: 1,
+      ...options
+    };
     this.#render();
     window.addEventListener("resize", this.#onResize);
   }
 
   drain() {
     cancelAnimationFrame(this.#raf);
-    this.#enableTransitions();
+    this.#enableTransitions(this.#options.drainSpeed);
     this.#setState("draining");
   }
 
   restore() {
-    this.#enableTransitions();
+    this.#enableTransitions(this.#options.restoreSpeed);
     this.#setState("returning");
     this.#pollReturn();
   }
 
-  /** Scrub animation to a normalised position (0 = idle, 1 = fully drained). */
   setProgress(t) {
     cancelAnimationFrame(this.#raf);
     const clamped = Math.max(0, Math.min(1, t));
 
     const strokes = this.#group.querySelectorAll(".tp-stroke");
     const fill = this.#group.querySelector(".tp-fill");
-    if (fill) fill.style.opacity = String(1 - clamped);
-
+    
+    if (fill) fill.style.opacity = String(Math.max(0, 1 - (clamped * this.#options.fadeSpeedFactor)));
+    
     strokes.forEach((el) => {
       el.style.transition = "none";
       const drain = parseFloat(el.dataset.drainOffset);
@@ -52,10 +56,9 @@ export class TextPipes {
     this.#container.innerHTML = "";
   }
 
-  // -- internals --
-
   #render() {
     const d = this.#data;
+    const color = this.#options.color;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.style.cssText =
@@ -68,21 +71,17 @@ export class TextPipes {
     const fill = document.createElementNS("http://www.w3.org/2000/svg", "path");
     fill.setAttribute("d", d.fillD);
     fill.setAttribute("class", "tp-fill");
-    fill.style.cssText =
-      "fill:#111;stroke:#111;stroke-width:2px;stroke-linecap:round;stroke-linejoin:round;transition:opacity .4s ease;";
+    fill.style.cssText = `fill:${color};stroke:${color};stroke-width:2px;stroke-linecap:round;stroke-linejoin:round;transition:opacity .4s ease;`;
     g.appendChild(fill);
 
     for (const p of d.pathData) {
-      const path = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "path"
-      );
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", p.fullD);
       path.setAttribute("class", "tp-stroke");
       path.dataset.drainOffset = String(-p.totalLength);
       path.dataset.dur = p.duration.toFixed(4);
       path.dataset.del = p.delay.toFixed(4);
-      path.style.cssText = `fill:none;stroke:#111;stroke-width:2px;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:${p.letterLength.toFixed(3)} ${(p.totalLength * 10).toFixed(3)};stroke-dashoffset:0;`;
+      path.style.cssText = `fill:none;stroke:${color};stroke-width:2px;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:${p.letterLength.toFixed(3)} ${(p.totalLength * 10).toFixed(3)};stroke-dashoffset:0;`;
       g.appendChild(path);
     }
 
@@ -99,9 +98,16 @@ export class TextPipes {
     this.#group.setAttribute("transform", `translate(${tx},${ty})`);
   }
 
-  #enableTransitions() {
+  #enableTransitions(speedFactor = 1) {
+    const fill = this.#group.querySelector(".tp-fill");
+    if (fill) {
+      fill.style.transition = `opacity ${0.4 / speedFactor}s ease`;
+    }
+
     this.#group.querySelectorAll(".tp-stroke").forEach((el) => {
-      el.style.transition = `stroke-dashoffset ${el.dataset.dur}s linear ${el.dataset.del}s`;
+      const dur = (parseFloat(el.dataset.dur) / speedFactor).toFixed(4);
+      const del = (parseFloat(el.dataset.del) / speedFactor).toFixed(4);
+      el.style.transition = `stroke-dashoffset ${dur}s linear ${del}s`;
     });
   }
 

@@ -1,18 +1,25 @@
 {
   "name": "text-pipes",
-  "version": "1.0.0",
-  "description": "Animated SVG text pipe effect; server generates path data, client renders and controls the animation.",
+  "version": "2.0.0",
+  "description": "Animated SVG text pipe effect",
   "type": "module",
   "exports": {
-    "./server": "./src/server.mjs",
-    "./client": "./src/client.mjs"
+    "./generator": "./dist/generator.mjs",
+    "./renderer": "./dist/renderer.mjs"
   },
   "files": [
-    "src"
+    "dist"
   ],
+  "scripts": {
+    "build": "vite build",
+    "prepare": "npm run build"
+  },
   "dependencies": {
     "opentype.js": "^2.0.0",
     "svg-path-properties": "^2.0.2"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0"
   },
   "license": "MIT"
 }

@@ -1,5 +1,4 @@
-import { readFileSync } from "fs";
-import opentype from "opentype.js";
+import * as opentype from "opentype.js";
 import { svgPathProperties } from "svg-path-properties";
 
 function generatePipeD(startX, startY) {
@@ -50,16 +49,25 @@ function commandsToSubpaths(commands) {
 }
 
 /**
- * @param {string} fontPath absolute path to a .ttf/.otf font file
- * @param {string} text     the word(s) to render
- * @param {number} [fontSize=150]
+ * @param {ArrayBuffer | Buffer} fontBuffer - The loaded font data
+ * @param {string} text                     - The word(s) to render
+ * @param {number} [fontSize=150]           - The font size
  * @returns {{ fillD: string, pathData: Array, totalWidth: number, fontSize: number, textOffsetX: number, textOffsetY: number }}
  */
-export function buildSVGData(fontPath, text, fontSize = 150) {
-  const buf = readFileSync(fontPath);
-  const font = opentype.parse(
-    buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
-  );
+export function buildSVGData(fontBuffer, text, fontSize = 150) {
+  let buffer;
+  if (fontBuffer instanceof ArrayBuffer) {
+    buffer = fontBuffer;
+  } else if (fontBuffer.buffer instanceof ArrayBuffer) {
+    buffer = fontBuffer.buffer.slice(
+      fontBuffer.byteOffset,
+      fontBuffer.byteOffset + fontBuffer.byteLength,
+    );
+  } else {
+    buffer = fontBuffer;
+  }
+
+  const font = opentype.parse(buffer);
 
   const textPath = font.getPath(text, 0, fontSize, fontSize);
   const totalWidth = font.getAdvanceWidth(text, fontSize);
