@@ -1,25 +1,67 @@
 {
   "name": "text-pipes",
-  "version": "2.0.0",
-  "description": "Animated SVG text pipe effect",
+  "version": "3.0.0",
+  "description": "Animated SVG text pipe effect — generate path data from any font, render responsive animations with drain/restore/scrub controls",
   "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
-    "./generator": "./dist/generator.mjs",
-    "./renderer": "./dist/renderer.mjs"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./generator": {
+      "types": "./dist/generator.d.ts",
+      "import": "./dist/generator.mjs",
+      "require": "./dist/generator.cjs"
+    },
+    "./renderer": {
+      "types": "./dist/renderer.d.ts",
+      "import": "./dist/renderer.mjs",
+      "require": "./dist/renderer.cjs"
+    }
   },
+  "unpkg": "./dist/text-pipes.iife.js",
+  "jsdelivr": "./dist/text-pipes.iife.js",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.config.iife.ts",
+    "typecheck": "tsc --noEmit",
     "prepare": "npm run build"
+  },
+  "keywords": [
+    "svg",
+    "text",
+    "animation",
+    "pipes",
+    "font",
+    "opentype",
+    "generative",
+    "canvas"
+  ],
+  "author": "Miles Edwards",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/milesedwards/text-pipes"
+  },
+  "homepage": "https://github.com/milesedwards/text-pipes#readme",
+  "bugs": {
+    "url": "https://github.com/milesedwards/text-pipes/issues"
   },
   "dependencies": {
     "opentype.js": "^2.0.0",
     "svg-path-properties": "^2.0.2"
   },
   "devDependencies": {
-    "vite": "^5.2.0"
-  },
-  "license": "MIT"
+    "@types/node": "^25.9.0",
+    "typescript": "^6.0.3",
+    "vite": "^5.2.0",
+    "vite-plugin-dts": "^5.0.0"
+  }
 }

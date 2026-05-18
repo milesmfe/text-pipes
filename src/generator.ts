@@ -1,34 +1,50 @@
 import * as opentype from "opentype.js";
 import { svgPathProperties } from "svg-path-properties";
+import type { SVGData, GeneratorOptions } from "./types.js";
 
-function generatePipeD(startX, startY) {
+const DEFAULTS = {
+  pipeMinLength: 150,
+  pipeMaxLength: 350,
+  pipeExtension: 1500,
+  speed: 1600,
+  stagger: 0.03,
+} as const;
+
+function generatePipeD(
+  startX: number,
+  startY: number,
+  rng: () => number,
+  minLen: number,
+  maxLen: number,
+  extension: number,
+): string {
   let currX = startX;
   let currY = startY;
-  let isVertical = Math.random() > 0.5;
+  let isVertical = rng() > 0.5;
 
-  const dir1 = Math.random() > 0.5 ? 1 : -1;
-  const dist1 = Math.random() * 200 + 150;
+  const dir1 = rng() > 0.5 ? 1 : -1;
+  const dist1 = rng() * (maxLen - minLen) + minLen;
   if (isVertical) currY += dir1 * dist1;
   else currX += dir1 * dist1;
 
   let d = ` L ${currX} ${currY}`;
   isVertical = !isVertical;
 
-  const dir2 = Math.random() > 0.5 ? 1 : -1;
-  if (isVertical) currY += dir2 * 1500;
-  else currX += dir2 * 1500;
+  const dir2 = rng() > 0.5 ? 1 : -1;
+  if (isVertical) currY += dir2 * extension;
+  else currX += dir2 * extension;
 
   return d + ` L ${currX} ${currY}`;
 }
 
-function extractMPoint(dStr) {
+function extractMPoint(dStr: string): { x: number; y: number } {
   const m = dStr.match(/^M\s*([\d.eE+-]+)\s+([\d.eE+-]+)/);
   if (!m) throw new Error(`No M command in subpath: ${dStr.slice(0, 40)}`);
   return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
 }
 
-function commandsToSubpaths(commands) {
-  const subPaths = [];
+function commandsToSubpaths(commands: opentype.PathCommand[]): string[] {
+  const subPaths: string[] = [];
   let current = "";
   for (const cmd of commands) {
     if (cmd.type === "M") {
@@ -48,14 +64,22 @@ function commandsToSubpaths(commands) {
   return subPaths;
 }
 
-/**
- * @param {ArrayBuffer | Buffer} fontBuffer - The loaded font data
- * @param {string} text                     - The word(s) to render
- * @param {number} [fontSize=150]           - The font size
- * @returns {{ fillD: string, pathData: Array, totalWidth: number, fontSize: number, textOffsetX: number, textOffsetY: number }}
- */
-export function buildSVGData(fontBuffer, text, fontSize = 150) {
-  let buffer;
+export function buildSVGData(
+  fontBuffer: ArrayBuffer | Buffer,
+  text: string,
+  fontSize = 150,
+  options: GeneratorOptions = {},
+): SVGData {
+  const {
+    rng = Math.random,
+    pipeMinLength = DEFAULTS.pipeMinLength,
+    pipeMaxLength = DEFAULTS.pipeMaxLength,
+    pipeExtension = DEFAULTS.pipeExtension,
+    speed = DEFAULTS.speed,
+    stagger = DEFAULTS.stagger,
+  } = options;
+
+  let buffer: ArrayBuffer;
   if (fontBuffer instanceof ArrayBuffer) {
     buffer = fontBuffer;
   } else if (fontBuffer.buffer instanceof ArrayBuffer) {
@@ -64,7 +88,7 @@ export function buildSVGData(fontBuffer, text, fontSize = 150) {
       fontBuffer.byteOffset + fontBuffer.byteLength,
     );
   } else {
-    buffer = fontBuffer;
+    buffer = fontBuffer as unknown as ArrayBuffer;
   }
 
   const font = opentype.parse(buffer);
@@ -75,7 +99,7 @@ export function buildSVGData(fontBuffer, text, fontSize = 150) {
 
   const pathData = subPaths.map((dStr, index) => {
     const endPt = extractMPoint(dStr);
-    const pipeD = generatePipeD(endPt.x, endPt.y);
+    const pipeD = generatePipeD(endPt.x, endPt.y, rng, pipeMinLength, pipeMaxLength, pipeExtension);
     const fullD = dStr + pipeD;
 
     const letterLength = new svgPathProperties(dStr).getTotalLength();
@@ -85,8 +109,8 @@ export function buildSVGData(fontBuffer, text, fontSize = 150) {
       fullD,
       letterLength,
       totalLength,
-      duration: totalLength / 1600,
-      delay: index * 0.03,
+      duration: totalLength / speed,
+      delay: index * stagger,
     };
   });
 
@@ -99,3 +123,5 @@ export function buildSVGData(fontBuffer, text, fontSize = 150) {
     textOffsetY: (fontSize * 2) / 3,
   };
 }
+
+export type { SVGData, GeneratorOptions } from "./types.js";
