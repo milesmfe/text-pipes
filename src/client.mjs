@@ -6,8 +6,8 @@ export class TextPipes {
   #raf = 0;
 
   /**
-   * @param {HTMLElement} container — element that will hold the SVG
-   * @param {object}      data     — JSON returned by buildSVGData()
+   * @param {HTMLElement} container  element that will hold the SVG
+   * @param {object}      data       JSON returned by buildSVGData()
    */
   #onResize = () => this.#applyTransform();
 

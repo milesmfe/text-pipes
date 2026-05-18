@@ -50,8 +50,8 @@ function commandsToSubpaths(commands) {
 }
 
 /**
- * @param {string} fontPath  — absolute path to a .ttf/.otf font file
- * @param {string} text      — the word(s) to render
+ * @param {string} fontPath absolute path to a .ttf/.otf font file
+ * @param {string} text     the word(s) to render
  * @param {number} [fontSize=150]
  * @returns {{ fillD: string, pathData: Array, totalWidth: number, fontSize: number, textOffsetX: number, textOffsetY: number }}
  */

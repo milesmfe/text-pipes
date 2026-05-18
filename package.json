@@ -1,7 +1,7 @@
 {
   "name": "text-pipes",
   "version": "1.0.0",
-  "description": "Animated SVG text pipe effect — server generates path data, client renders and controls the animation.",
+  "description": "Animated SVG text pipe effect; server generates path data, client renders and controls the animation.",
   "type": "module",
   "exports": {
     "./server": "./src/server.mjs",
