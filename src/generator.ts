@@ -1,4 +1,4 @@
-import * as opentype from "opentype.js";
+import * as opentypeModule from "opentype.js";
 import { svgPathProperties } from "svg-path-properties";
 import type { SVGData, GeneratorOptions } from "./types.js";
 
@@ -43,7 +43,7 @@ function extractMPoint(dStr: string): { x: number; y: number } {
   return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
 }
 
-function commandsToSubpaths(commands: opentype.PathCommand[]): string[] {
+function commandsToSubpaths(commands: opentypeModule.PathCommand[]): string[] {
   const subPaths: string[] = [];
   let current = "";
   for (const cmd of commands) {
@@ -91,19 +91,28 @@ export function buildSVGData(
     buffer = fontBuffer as unknown as ArrayBuffer;
   }
 
-  let font: opentype.Font;
+  // CJS/ESM interop fallback
+  const opentype = (opentypeModule as any).default || opentypeModule;
+
+  if (typeof opentype.parse !== "function") {
+    throw new Error(
+      "Font parser failed to initialize. Ensure opentype.js is resolving correctly.",
+    );
+  }
+
+  let font: opentypeModule.Font;
   try {
     font = opentype.parse(buffer);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(
       `Failed to parse font: ${msg}. ` +
-      "Ensure the file is a valid .ttf or .otf font. " +
-      "Some OpenType features (e.g. advanced GSUB substitutions) are not supported by the underlying parser.",
+        "Ensure the file is a valid .ttf or .otf font. " +
+        "Some OpenType features (e.g. advanced GSUB substitutions) are not supported by the underlying parser.",
     );
   }
 
-  let textPath: opentype.Path;
+  let textPath: opentypeModule.Path;
   let totalWidth: number;
   try {
     textPath = font.getPath(text, 0, fontSize, fontSize);
@@ -112,14 +121,21 @@ export function buildSVGData(
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(
       `Failed to render "${text}" with the provided font: ${msg}. ` +
-      "The font may use unsupported OpenType features or may not contain glyphs for the requested characters.",
+        "The font may use unsupported OpenType features or may not contain glyphs for the requested characters.",
     );
   }
   const subPaths = commandsToSubpaths(textPath.commands);
 
   const pathData = subPaths.map((dStr, index) => {
     const endPt = extractMPoint(dStr);
-    const pipeD = generatePipeD(endPt.x, endPt.y, rng, pipeMinLength, pipeMaxLength, pipeExtension);
+    const pipeD = generatePipeD(
+      endPt.x,
+      endPt.y,
+      rng,
+      pipeMinLength,
+      pipeMaxLength,
+      pipeExtension,
+    );
     const fullD = dStr + pipeD;
 
     const letterLength = new svgPathProperties(dStr).getTotalLength();
