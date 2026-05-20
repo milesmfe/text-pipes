@@ -65,7 +65,7 @@ export class TextPipes {
     this.#clearPending();
     return new Promise<void>((resolve) => {
       this.#pendingFinalState = "idle";
-      this.#enableTransitions(this.#options.restoreSpeed);
+      this.#enableTransitions(this.#options.restoreSpeed, true);
       this.#listenForTransitionEnd(resolve);
       this.#setState("returning");
     });
@@ -147,11 +147,22 @@ export class TextPipes {
     this.#container.appendChild(svg);
   }
 
-  #enableTransitions(speedFactor = 1): void {
+  #enableTransitions(speedFactor = 1, forRestore = false): void {
     const { easing } = this.#options;
 
     if (this.#fill) {
-      this.#fill.style.transition = `opacity ${0.4 / speedFactor}s ease`;
+      if (forRestore && this.#strokes.length > 0) {
+        let maxDur = 0;
+        for (const s of this.#strokes) {
+          const total = (s.duration + s.delay) / speedFactor;
+          if (total > maxDur) maxDur = total;
+        }
+        const fillDelay = (maxDur * 0.3).toFixed(4);
+        const fillDur = (maxDur * 0.4).toFixed(4);
+        this.#fill.style.transition = `opacity ${fillDur}s ease ${fillDelay}s`;
+      } else {
+        this.#fill.style.transition = `opacity ${0.4 / speedFactor}s ease`;
+      }
     }
 
     for (const s of this.#strokes) {
@@ -170,12 +181,15 @@ export class TextPipes {
         s.el.style.strokeDashoffset = String(s.drainOffset);
       }
     } else if (state === "returning") {
-      if (this.#fill) this.#fill.style.opacity = "0";
+      if (this.#fill) this.#fill.style.opacity = "1";
       for (const s of this.#strokes) {
         s.el.style.strokeDashoffset = "0";
       }
     } else {
-      if (this.#fill) this.#fill.style.opacity = "1";
+      if (this.#fill) {
+        this.#fill.style.transition = "none";
+        this.#fill.style.opacity = "1";
+      }
       for (const s of this.#strokes) {
         s.el.style.transition = "none";
         s.el.style.strokeDashoffset = "0";
