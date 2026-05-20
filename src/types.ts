@@ -9,6 +9,9 @@ export interface PathDatum {
 export interface SVGData {
   fillD: string;
   pathData: PathDatum[];
+  viewBox: string;
+  width: number;
+  height: number;
   totalWidth: number;
   fontSize: number;
   textOffsetX: number;
@@ -31,4 +34,5 @@ export interface RendererOptions {
   drainSpeed?: number;
   restoreSpeed?: number;
   easing?: string;
+  align?: "left" | "center" | "right";
 }

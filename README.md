@@ -42,8 +42,10 @@ const data = buildSVGData(font, "hello world");
 
 ### 2. Render and animate
 
+The renderer creates an SVG that scales responsively to fill its container via `viewBox`. Just give the container a size and the text scales to fit.
+
 ```html
-<div id="tp" style="width: 100%; height: 100vh"></div>
+<div id="tp" style="width: 600px; max-width: 100%"></div>
 
 <script type="module">
   import { TextPipes } from "@milesmfe/text-pipes/renderer";
@@ -63,7 +65,22 @@ const data = buildSVGData(font, "hello world");
 
 Both `drain()` and `restore()` return a `Promise` that resolves when the animation completes, so you can chain animations or run logic after them.
 
-### 3. Scroll-driven scrubbing
+### 3. Alignment
+
+Control how the text sits within its container using the `align` option. The SVG's `preserveAspectRatio` is set accordingly.
+
+```js
+// left-aligned (e.g. for a heading above body text)
+new TextPipes(el, data, { align: "left" });
+
+// right-aligned
+new TextPipes(el, data, { align: "right" });
+
+// centered (default)
+new TextPipes(el, data, { align: "center" });
+```
+
+### 4. Scroll-driven scrubbing
 
 `setProgress` maps a `0`-`1` value directly to the animation position with transitions disabled, making it ideal for scroll-linked effects.
 
@@ -74,7 +91,7 @@ window.addEventListener("scroll", () => {
 });
 ```
 
-### 4. One-import browser usage
+### 5. One-import browser usage
 
 If you don't need the server/client split, the root entry point re-exports everything:
 
@@ -86,12 +103,12 @@ const data = buildSVGData(font, "hello");
 const tp   = new TextPipes(document.getElementById("tp"), data);
 ```
 
-### 5. Static HTML (no bundler)
+### 6. Static HTML (no bundler)
 
-A self-contained IIFE build is included for use via CDN or a local `<script>` tag. It bundles all dependencies and exposes a `TextPipes` global.
+A self-contained IIFE build is included for use via CDN or a local `<script>` tag. It bundles all dependencies and exposes a `textPipes` global.
 
 ```html
-<div id="tp" style="width: 100%; height: 100vh"></div>
+<div id="tp" style="width: 600px; max-width: 100%"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@milesmfe/text-pipes/dist/text-pipes.iife.js"></script>
 <script>
@@ -137,7 +154,7 @@ Parses a font, traces the glyphs for `text`, appends a randomised pipe segment t
 |---|---|---|---|
 | `fontBuffer` | `ArrayBuffer \| Buffer` | | Raw `.ttf` or `.otf` font data |
 | `text` | `string` | | The text to render |
-| `fontSize` | `number` | `150` | Font size in px |
+| `fontSize` | `number` | `150` | Font size in px (controls path detail, not display size) |
 | `options` | `GeneratorOptions` | `{}` | See below |
 
 **`GeneratorOptions`**
@@ -155,12 +172,15 @@ Parses a font, traces the glyphs for `text`, appends a randomised pipe segment t
 
 ```ts
 interface SVGData {
-  fillD: string;        // combined fill path for the solid text shape
-  pathData: PathDatum[];// per-subpath data (path d, lengths, timing)
-  totalWidth: number;   // advance width of the text in px
-  fontSize: number;     // the fontSize that was used
-  textOffsetX: number;  // horizontal centering offset
-  textOffsetY: number;  // vertical centering offset
+  fillD: string;         // combined fill path for the solid text shape
+  pathData: PathDatum[]; // per-subpath data (path d, lengths, timing)
+  viewBox: string;       // SVG viewBox computed from the font's bounding box
+  width: number;         // natural width of the text (px)
+  height: number;        // natural height of the text (px)
+  totalWidth: number;    // advance width of the text (px)
+  fontSize: number;      // the fontSize that was used
+  textOffsetX: number;   // legacy horizontal centering offset
+  textOffsetY: number;   // legacy vertical centering offset
 }
 
 interface PathDatum {
@@ -180,7 +200,7 @@ The returned object is plain JSON — you can `JSON.stringify` it, store it in a
 
 #### `new TextPipes(container, data, options?)`
 
-Creates a responsive SVG inside `container` and observes the container for resizes.
+Creates a responsive SVG inside `container`. The SVG uses `viewBox` to scale proportionally — the container only needs a width and the text scales to fit. No `position: relative` or explicit height required.
 
 | Param | Type | Description |
 |---|---|---|
@@ -198,6 +218,7 @@ Creates a responsive SVG inside `container` and observes the container for resiz
 | `drainSpeed` | `number` | `1` | Speed multiplier for `drain()` transitions |
 | `restoreSpeed` | `number` | `1` | Speed multiplier for `restore()` transitions |
 | `easing` | `string` | `"linear"` | CSS easing function for stroke transitions |
+| `align` | `"left" \| "center" \| "right"` | `"center"` | Horizontal alignment within the container |
 
 #### Methods
 
@@ -206,7 +227,7 @@ Creates a responsive SVG inside `container` and observes the container for resiz
 | `drain()` | `Promise<void>` | Animate every stroke away from its character. Resolves when the animation completes |
 | `restore()` | `Promise<void>` | Animate all strokes back to idle. Resolves when the animation completes and the fill is visible again |
 | `setProgress(t)` | `void` | Scrub to an exact position. `0` = idle, `1` = fully drained. Transitions are disabled so updates are instant |
-| `destroy()` | `void` | Disconnect the resize observer and clear the container |
+| `destroy()` | `void` | Remove the SVG and release all references |
 
 #### Properties
 
@@ -273,6 +294,18 @@ const tp = new TextPipes(container, data, {
 });
 ```
 
+### Responsive sizing
+
+The SVG scales to fit its container's width, maintaining aspect ratio. Just set a width on the container — no height needed.
+
+```html
+<!-- fills available width, height adjusts automatically -->
+<div id="tp" style="width: 100%"></div>
+
+<!-- constrained width -->
+<div id="tp" style="width: 400px; max-width: 100%"></div>
+```
+
 ### React
 
 ```jsx
@@ -288,8 +321,28 @@ function Pipes({ data }) {
     return () => tp.destroy();
   }, [data]);
 
-  return <div ref={ref} style={{ width: "100%", height: "100vh" }} />;
+  return <div ref={ref} style={{ width: "100%", maxWidth: 600 }} />;
 }
+```
+
+### Svelte
+
+```svelte
+<script>
+  import { onMount } from "svelte";
+
+  let { data } = $props();
+  let container = $state<HTMLElement>();
+
+  onMount(() => {
+    const { TextPipes } = await import("@milesmfe/text-pipes/renderer");
+    const tp = new TextPipes(container, data, { color: "#111" });
+    tp.drain();
+    return () => tp.destroy();
+  });
+</script>
+
+<div bind:this={container} style="width: 100%; max-width: 600px;"></div>
 ```
 
 ## TypeScript

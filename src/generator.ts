@@ -91,7 +91,6 @@ export function buildSVGData(
     buffer = fontBuffer as unknown as ArrayBuffer;
   }
 
-  // CJS/ESM interop fallback
   const opentype = (opentypeModule as any).default || opentypeModule;
 
   if (typeof opentype.parse !== "function") {
@@ -124,6 +123,14 @@ export function buildSVGData(
         "The font may use unsupported OpenType features or may not contain glyphs for the requested characters.",
     );
   }
+
+  const bbox = textPath.getBoundingBox();
+  const pad = 4;
+  const vbX = bbox.x1 - pad;
+  const vbY = bbox.y1 - pad;
+  const vbW = bbox.x2 - bbox.x1 + pad * 2;
+  const vbH = bbox.y2 - bbox.y1 + pad * 2;
+
   const subPaths = commandsToSubpaths(textPath.commands);
 
   const pathData = subPaths.map((dStr, index) => {
@@ -153,6 +160,9 @@ export function buildSVGData(
   return {
     fillD: subPaths.join(" "),
     pathData,
+    viewBox: `${vbX} ${vbY} ${vbW} ${vbH}`,
+    width: vbW,
+    height: vbH,
     totalWidth,
     fontSize,
     textOffsetX: totalWidth / 2,
